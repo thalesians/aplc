@@ -4,7 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <sstream>
-#include <llvm/Value.h>
+#include <llvm/IR/Value.h>
 
 class CodeGenContext;
 class NExpression;

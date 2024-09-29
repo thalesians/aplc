@@ -3,22 +3,24 @@
 #include <cstdio>
 #include <map>
 
-#include <llvm/Constants.h>
-#include <llvm/DerivedTypes.h>
-#include <llvm/Function.h>
+#include <llvm/IR/Constants.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/Function.h>
 #include <llvm/Transforms/Utils/Cloning.h>
-#include <llvm/ADT/ValueMap.h>
-#include <llvm/LLVMContext.h>
-#include <llvm/Module.h>
-#include <llvm/Analysis/Verifier.h>
-#include <llvm/Support/IRBuilder.h>
-#include <llvm/PassManager.h>
+#include <llvm/IR/ValueMap.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/Verifier.h>
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/PassManager.h>
 #include <llvm/LinkAllPasses.h>
 
 #include "node.h"
 #include "parser.h"
 
 using namespace llvm;
+
+static LLVMContext my_context;
 
 llvm::Value *ErrorV(const char *str)
 {
@@ -27,7 +29,7 @@ llvm::Value *ErrorV(const char *str)
 }
 
 static llvm::Module *mod;
-static llvm::IRBuilder<> builder(llvm::getGlobalContext());
+static llvm::IRBuilder<> builder(my_context);
 
 typedef std::map<std::string, llvm::Value *> symbolTable;
 static symbolTable named_values;
@@ -38,7 +40,7 @@ static std::map<int, llvm::UnresolvedType *> unresolved_type_map;
 namespace llvm {
 struct UnresolvedType : public Type {
     int x;
-    UnresolvedType(int x) : Type(mod->getContext(), NumTypeIDs), x(x) {}
+    UnresolvedType(int x) : Type(mod->getContext(), NumContainedTys), x(x) {}
     static UnresolvedType *get(int x) {
         UnresolvedType *ret = unresolved_type_map[x];
         if (!ret) {
@@ -46,9 +48,9 @@ struct UnresolvedType : public Type {
         }
         return ret;
     }
-    virtual TypeID getTypeID() const { return NumTypeIDs; }
+    virtual TypeID getTypeID() const { return NumContainedTys; }
     static inline bool classof(const Type *b) {
-        return b->getTypeID() == NumTypeIDs;
+        return b->getTypeID() == NumContainedTys;
     }
 };
 }
@@ -62,7 +64,7 @@ llvm::Function *generate_identity()
     Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "ι");
 
     BasicBlock *block = BasicBlock::Create(mod->getContext(), "entry", func, 0);
-    llvm::IRBuilder<> builder(llvm::getGlobalContext());
+    llvm::IRBuilder<> builder(my_context);
     builder.SetInsertPoint(block);
 
     std::vector<Value *> retvals;
@@ -83,7 +85,7 @@ llvm::Function *generate_alpha(Type *type_ptr)
     Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "α", mod);
 
     BasicBlock *block = BasicBlock::Create(mod->getContext(), "entry", func, 0);
-    llvm::IRBuilder<> builder(llvm::getGlobalContext());
+    llvm::IRBuilder<> builder(my_context);
     builder.SetInsertPoint(block);
     Value *el = builder.CreateStructGEP(func->arg_begin(), 0);
     builder.CreateRet(builder.CreateLoad(el));
@@ -100,7 +102,7 @@ llvm::Function *generate_beta(Type *type_ptr)
     Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "β", mod);
 
     BasicBlock *block = BasicBlock::Create(mod->getContext(), "entry", func, 0);
-    llvm::IRBuilder<> builder(llvm::getGlobalContext());
+    llvm::IRBuilder<> builder(my_context);
     builder.SetInsertPoint(block);
     Value *el = builder.CreateStructGEP(func->arg_begin(), 1);
     builder.CreateRet(builder.CreateLoad(el));
@@ -116,11 +118,11 @@ llvm::Function *generate_putchar()
     Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "putchar", mod);
 
     BasicBlock *block = BasicBlock::Create(mod->getContext(), "entry", func, 0);
-    llvm::IRBuilder<> builder(llvm::getGlobalContext());
+    llvm::IRBuilder<> builder(my_context);
     builder.SetInsertPoint(block);
 
     static Value* const_ptr_12 = builder.CreateGlobalStringPtr("%lc");
-    builder.CreateCall2(named_values["__printf"], const_ptr_12, func->arg_begin());
+    builder.CreateCall(named_values["__printf"], const_ptr_12, func->arg_begin());
     builder.CreateRetVoid();
 
     return func;
@@ -146,7 +148,7 @@ llvm::Value *NAssign::codeGen() {
     if (isa<Argument>(id)) {
         named_values[id->getName()] = id;
     }
-    std::string ident = id->getName();
+    llvm::StringRef ident = id->getName();
     std::cerr << ident << std::endl;
     llvm::Value *R = r.codeGen();
     if (!R) return NULL;
@@ -533,7 +535,7 @@ static void print_value(llvm::Function *printf, llvm::Value *val)
     }
 
     if (val->getType()->isIntegerTy()) {
-        builder.CreateCall2(printf, format_int, val);
+        builder.CreateCall(printf, format_int, val);
     } else if (val->getType()->isPointerTy()) {
         if (is_aplc_array(val)) {
             Value *array_size = builder.CreateLoad(builder.CreateStructGEP(val, 0));
@@ -553,7 +555,7 @@ static void print_value(llvm::Function *printf, llvm::Value *val)
             indvar->addIncoming(builder.getInt64(0), old);
 
             Value *Idxs[] = { builder.getInt64(0), indvar };
-            builder.CreateCall2(printf, format_int, builder.CreateLoad(builder.CreateGEP(array_data, ArrayRef<Value *>(Idxs))));
+            builder.CreateCall(printf, format_int, builder.CreateLoad(builder.CreateGEP(array_data, ArrayRef<Value *>(Idxs))));
             builder.CreateCall(printf, struct_del);
 
             Value* nextindvar = builder.CreateBinOp(Instruction::Add, indvar, builder.getInt64(1));
@@ -566,7 +568,7 @@ static void print_value(llvm::Function *printf, llvm::Value *val)
             builder.CreateCall(printf, struct_beg);
             size_t size = cast<StructType>(builder.CreateLoad(val)->getType())->getNumElements();
             for (size_t i = 0; i < size; ++i) {
-                builder.CreateCall2(printf, format_int, builder.CreateLoad(builder.CreateStructGEP(val, i)));
+                builder.CreateCall(printf, format_int, builder.CreateLoad(builder.CreateStructGEP(val, i)));
                 if (i != size - 1) builder.CreateCall(printf, struct_del);
             }
             builder.CreateCall(printf, struct_end);
@@ -575,7 +577,7 @@ static void print_value(llvm::Function *printf, llvm::Value *val)
         builder.CreateCall(printf, array_beg);
         size_t size = cast<ArrayType>(val->getType())->getNumElements();
         for (size_t i = 0; i < size; ++i) {
-            builder.CreateCall2(printf, format_int, builder.CreateExtractValue(val, i));
+            builder.CreateCall(printf, format_int, builder.CreateExtractValue(val, i));
             if (i != size - 1) builder.CreateCall(printf, struct_del);
         }
         builder.CreateCall(printf, array_end);
@@ -584,7 +586,7 @@ static void print_value(llvm::Function *printf, llvm::Value *val)
         builder.CreateCall(printf, struct_beg);
         size_t size = cast<StructType>(val->getType())->getNumElements();
         for (size_t i = 0; i < size; ++i) {
-            builder.CreateCall2(printf, format_int, builder.CreateExtractValue(val, i));
+            builder.CreateCall(printf, format_int, builder.CreateExtractValue(val, i));
             if (i != size - 1) builder.CreateCall(printf, struct_del);
         }
         builder.CreateCall(printf, struct_end);
@@ -594,7 +596,7 @@ static void print_value(llvm::Function *printf, llvm::Value *val)
 
 void generate_code(ExpressionList *exprs)
 {
-    mod = new Module("main", getGlobalContext());
+    mod = new Module("main", my_context);
 
     // main
     Type *func_main_args[] = { builder.getInt32Ty(), PointerType::get(builder.getInt8PtrTy(), 0) };
@@ -615,7 +617,7 @@ void generate_code(ExpressionList *exprs)
     builder.SetInsertPoint(bblock);
 
     static Value* zero_initializer = builder.CreateGlobalStringPtr("");
-    builder.CreateCall2(named_values["__setlocale"], builder.getInt32(LC_ALL), zero_initializer);
+    builder.CreateCall(named_values["__setlocale"], builder.getInt32(LC_ALL), zero_initializer);
 
     // globals
     named_values["ι"] = generate_identity();
@@ -634,8 +636,9 @@ void generate_code(ExpressionList *exprs)
 
     std::cerr << "Code is generated." << std::endl;
 
-    PassManager pm;
-    pm.add(createFunctionInliningPass());
-    pm.add(createPrintModulePass(&outs()));
+
+    ModulePassManager pm;
+    pm.addPass(createFunctionInliningPass());
+    pm.addPass(createPrintModulePass(outs()));
     pm.run(*mod);
 }
