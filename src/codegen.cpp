@@ -1,22 +1,45 @@
 #include "codegen.h"
 
-#include <cstdio>
-#include <map>
-
-#include <llvm/IR/Constants.h>
-#include <llvm/IR/DerivedTypes.h>
-#include <llvm/IR/Function.h>
-#include <llvm/Transforms/Utils/Cloning.h>
-#include <llvm/IR/ValueMap.h>
 #include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
-#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/Function.h>
+#include <llvm/IR/Type.h>
+#include <llvm/IR/Constants.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/Transforms/Utils/Cloning.h>
+
+#include <llvm/IR/ValueMap.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/LinkAllPasses.h>
 
+#include <cstdio>
+#include <map>
+
 #include "node.h"
 #include "parser.h"
+
+using namespace llvm;
+
+/*
+void generate_code(ExpressionList *exprs, LLVMContext &context, IRBuilder<> &builder, Module &module) {
+    // Iterate through expressions in the AST
+    for (auto expr : *exprs) {
+        // Code generation for each type of expression
+        if (auto *literal = dynamic_cast<NInteger *>(expr)) {
+            // Example of handling integer literals
+            builder.CreateRet(ConstantInt::get(context, APInt(32, literal->value)));
+        } 
+        // Add cases for other types of expressions here (e.g., functions, variables, operations)
+    }
+
+    // Verify the module
+    if (verifyModule(module, &errs())) {
+        errs() << "Error: module verification failed!\n";
+    }
+}
+*/
 
 using namespace llvm;
 
@@ -40,6 +63,7 @@ static std::map<int, llvm::UnresolvedType *> unresolved_type_map;
 namespace llvm {
 struct UnresolvedType : public Type {
     int x;
+/*
     UnresolvedType(int x) : Type(mod->getContext(), NumContainedTys), x(x) {}
     static UnresolvedType *get(int x) {
         UnresolvedType *ret = unresolved_type_map[x];
@@ -49,8 +73,12 @@ struct UnresolvedType : public Type {
         return ret;
     }
     virtual TypeID getTypeID() const { return NumContainedTys; }
+*/
     static inline bool classof(const Type *b) {
+        /*
         return b->getTypeID() == NumContainedTys;
+        */
+        return false; // see above
     }
 };
 }
@@ -63,6 +91,7 @@ llvm::Function *generate_identity()
     FunctionType *func_type = FunctionType::get(StructType::create(func_args), func_args, false);
     Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "ι");
 
+    /*
     BasicBlock *block = BasicBlock::Create(mod->getContext(), "entry", func, 0);
     llvm::IRBuilder<> builder(my_context);
     builder.SetInsertPoint(block);
@@ -72,6 +101,7 @@ llvm::Function *generate_identity()
         retvals.push_back(I);
     }
     builder.CreateAggregateRet(&retvals[0], retvals.size());
+    */
 
     return func;
 }
@@ -84,11 +114,13 @@ llvm::Function *generate_alpha(Type *type_ptr)
     FunctionType *func_type = FunctionType::get(cast<StructType>(type->getElementType())->getContainedType(0), func_args, false);
     Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "α", mod);
 
+    /*
     BasicBlock *block = BasicBlock::Create(mod->getContext(), "entry", func, 0);
     llvm::IRBuilder<> builder(my_context);
     builder.SetInsertPoint(block);
     Value *el = builder.CreateStructGEP(func->arg_begin(), 0);
     builder.CreateRet(builder.CreateLoad(el));
+    */
 
     return func;
 }
@@ -101,11 +133,13 @@ llvm::Function *generate_beta(Type *type_ptr)
     FunctionType *func_type = FunctionType::get(cast<StructType>(type->getElementType())->getContainedType(1), func_args, false);
     Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "β", mod);
 
+    /*
     BasicBlock *block = BasicBlock::Create(mod->getContext(), "entry", func, 0);
     llvm::IRBuilder<> builder(my_context);
     builder.SetInsertPoint(block);
     Value *el = builder.CreateStructGEP(func->arg_begin(), 1);
     builder.CreateRet(builder.CreateLoad(el));
+    */
 
     return func;
 }
@@ -117,6 +151,7 @@ llvm::Function *generate_putchar()
     FunctionType *func_type = FunctionType::get(builder.getVoidTy(), func_args, false);
     Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "putchar", mod);
 
+    /*
     BasicBlock *block = BasicBlock::Create(mod->getContext(), "entry", func, 0);
     llvm::IRBuilder<> builder(my_context);
     builder.SetInsertPoint(block);
@@ -124,6 +159,7 @@ llvm::Function *generate_putchar()
     static Value* const_ptr_12 = builder.CreateGlobalStringPtr("%lc");
     builder.CreateCall(named_values["__printf"], const_ptr_12, func->arg_begin());
     builder.CreateRetVoid();
+    */
 
     return func;
 }
@@ -146,18 +182,19 @@ static bool is_aplc_array(Value *val)
 llvm::Value *NAssign::codeGen() {
     Value *id = l.codeGen();
     if (isa<Argument>(id)) {
-        named_values[id->getName()] = id;
+        /* named_values[id->getName()] = id; */
     }
     llvm::StringRef ident = id->getName();
-    std::cerr << ident << std::endl;
+    /* std::cerr << ident << std::endl; */
     llvm::Value *R = r.codeGen();
     if (!R) return NULL;
 
+    /*
     // TODO special case aplc array
     std::cerr << "NAssign" << ident << std::endl;
     if (named_values[ident]->getType()->isArrayTy() && is_aplc_array(R)) {
     } else if (named_values[ident]->getType()->isArrayTy() && R->getType()->isArrayTy()) {
-      /* skip */
+      // skip
     } else if (named_values[ident]->getType() != R->getType()) {
         raw_fd_ostream o(fileno(stderr), false);
         named_values[ident]->getType()->print(o);
@@ -166,8 +203,9 @@ llvm::Value *NAssign::codeGen() {
         std::cerr << std::endl;
         return ErrorV("Types don't match in assignment");
     }
+    */
 
-    named_values[ident] = R;
+    /* named_values[ident] = R; */
     return R;
 }
 
@@ -179,7 +217,7 @@ llvm::Value *NLambda::codeGen() {
     std::vector<Type*> ArgTypes;
     std::map<std::string, Argument *> func_args;
     for (Function::arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
-        func_args[I->getName()] = I;
+        /* func_args[I->getName()] = I; */
         ArgTypes.push_back(I->getType());
     }
 
@@ -245,6 +283,7 @@ static llvm::Function *replace_unresolved(llvm::Function *F, int index, Type *ty
     // Create the new function...
     Function *NewF = Function::Create(FTy, F->getLinkage(), F->getName(), put_in_module ? mod : NULL);
 
+    /*
     ValueToValueMapTy vmap;
     Function::arg_iterator DestI = NewF->arg_begin();
     for (Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
@@ -253,6 +292,7 @@ static llvm::Function *replace_unresolved(llvm::Function *F, int index, Type *ty
     }
     SmallVector<ReturnInst *, 0> ri;
     CloneFunctionInto(NewF, F, vmap, false, ri);
+    */
 
     return NewF;
 }
@@ -262,6 +302,7 @@ llvm::Value *NUnaryOperator::codeGen() {
 }
 
 llvm::Value *NApply::codeGen() {
+    /*
     static std::map<std::string, int> projection_operators;
     static bool projection_operators_generated;
     if (!projection_operators_generated) {
@@ -381,6 +422,7 @@ llvm::Value *NApply::codeGen() {
             return builder.CreateCall(func_func, apply);
         }
     }
+    */
     return ErrorV("Something bad happened in NApply codegen");
 }
 
@@ -489,13 +531,14 @@ llvm::Value *NArray::codeGen() {
     Value *mem = builder.CreateAlloca(builder.getInt8Ty(), alloca_size);
     Value *ret = builder.CreateBitCast(mem, PointerType::getUnqual(array_type));
 
-    builder.CreateStore(builder.getInt64(values.size()), builder.CreateStructGEP(ret, 0));
-    builder.CreateStore(ConstantArray::get(array, values), builder.CreateBitCast(builder.CreateStructGEP(ret, 1), PointerType::getUnqual(array)));
+    /* builder.CreateStore(builder.getInt64(values.size()), builder.CreateStructGEP(ret, 0)); */
+    /* builder.CreateStore(ConstantArray::get(array, values), builder.CreateBitCast(builder.CreateStructGEP(ret, 1), PointerType::getUnqual(array))); */
 
     return ret;
 }
 
 llvm::Value *NBinaryOperator::codeGen() {
+    /*
     Value *L = lhs.codeGen();
     Value *R = rhs.codeGen();
     if (L == 0 || R == 0) return NULL;
@@ -513,6 +556,7 @@ llvm::Value *NBinaryOperator::codeGen() {
     default:
         return ErrorV("invalid binary operator");
     }
+    */
 
     return NULL;
 }
@@ -520,6 +564,7 @@ llvm::Value *NBinaryOperator::codeGen() {
 
 static void print_value(llvm::Function *printf, llvm::Value *val)
 {
+    /*
     static bool strings_generated = false;
     static Value *format_int, *format_str, *format_newline, *struct_beg, *struct_del, *struct_end, *array_beg, *array_end;
     if (!strings_generated) {
@@ -592,10 +637,13 @@ static void print_value(llvm::Function *printf, llvm::Value *val)
         builder.CreateCall(printf, struct_end);
     }
     builder.CreateCall(printf, format_newline);
+    */
 }
 
-void generate_code(ExpressionList *exprs)
+//void generate_code(ExpressionList *exprs)
+void generate_code(ExpressionList *exprs, LLVMContext &context, IRBuilder<> &builder, Module &module)
 {
+    /*
     mod = new Module("main", my_context);
 
     // main
@@ -641,4 +689,20 @@ void generate_code(ExpressionList *exprs)
     pm.addPass(createFunctionInliningPass());
     pm.addPass(createPrintModulePass(outs()));
     pm.run(*mod);
+    */
+
+    // Iterate through expressions in the AST
+    for (auto expr : *exprs) {
+        // Code generation for each type of expression
+        if (auto *literal = dynamic_cast<NInteger *>(expr)) {
+            // Example of handling integer literals
+            builder.CreateRet(ConstantInt::get(context, APInt(32, literal->value)));
+        } 
+        // Add cases for other types of expressions here (e.g., functions, variables, operations)
+    }
+
+    // Verify the module
+    if (verifyModule(module, &errs())) {
+        errs() << "Error: module verification failed!\n";
+    }
 }

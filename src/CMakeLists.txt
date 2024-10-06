@@ -9,13 +9,17 @@ if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
     file(WRITE "${CMAKE_BINARY_DIR}/FindBISON.cmake" "${FIND_BISON_FILE}")
 endif()
 
-find_package(LLVM REQUIRED)
+find_package(LLVM REQUIRED CONFIG)
 find_package(BISON REQUIRED)
 find_package(FLEX REQUIRED)
 find_library(ICONV_LIBRARY iconv)
 if(NOT ICONV_LIBRARY)
     set(ICONV_LIBRARY "")
 endif()
+
+include_directories(${LLVM_INCLUDE_DIRS})
+separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
+add_definitions(${LLVM_DEFINITIONS_LIST})
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(SYSTEM ${CMAKE_CURRENT_BINARY_DIR})
@@ -32,23 +36,15 @@ else()
     execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_BINARY_DIR}/parser.hpp ${CMAKE_CURRENT_BINARY_DIR}/parser.h)
 endif()
 
+# Find the libraries that correspond to the LLVM components
+# that we wish to use
+llvm_map_components_to_libnames(llvm_libs support core irreader)
+
 add_executable(aplc main print codegen ${BISON_MyParser_OUTPUTS} ${FLEX_MyScanner_OUTPUTS})
-set_target_properties(aplc PROPERTIES
-    COMPILE_FLAGS ${LLVM_CFLAGS}
-    LINK_FLAGS ${LLVM_LD_FLAGS})
-target_link_libraries(aplc
-    LLVMipo
-    LLVMInstrumentation
-    LLVMScalarOpts
-    LLVMInstCombine
-    LLVMTransformUtils
-    LLVMipa
-    LLVMAnalysis
-    LLVMTarget
-    LLVMCore
-    LLVMSupport
-    ${ICONV_LIBRARY}
-)
+#set_target_properties(aplc PROPERTIES COMPILE_FLAGS ${LLVM_CFLAGS})
+#set_target_properties(aplc PROPERTIES LINK_FLAGS ${LLVM_LD_FLAGS})
+# Link against LLVM libraries
+target_link_libraries(aplc ${llvm_libs})
 
 if(LLVM_VERSION STRGREATER "3.0")
     target_link_libraries(aplc LLVMVectorize)
