@@ -38,13 +38,14 @@ endif()
 
 # Find the libraries that correspond to the LLVM components
 # that we wish to use
-llvm_map_components_to_libnames(llvm_libs support core irreader)
+llvm_map_components_to_libnames(llvm_libs core irreader lto mc mcdisassembler support target all)
 
 add_executable(aplc main print codegen ${BISON_MyParser_OUTPUTS} ${FLEX_MyScanner_OUTPUTS})
 #set_target_properties(aplc PROPERTIES COMPILE_FLAGS ${LLVM_CFLAGS})
 #set_target_properties(aplc PROPERTIES LINK_FLAGS ${LLVM_LD_FLAGS})
 # Link against LLVM libraries
 target_link_libraries(aplc ${llvm_libs})
+target_link_libraries(aplc LLVM-15 LLVMSupport)
 
 if(LLVM_VERSION STRGREATER "3.0")
     target_link_libraries(aplc LLVMVectorize)

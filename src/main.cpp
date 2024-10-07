@@ -65,7 +65,18 @@ int main(int argc, char **argv)
                 (*file)[i]->print(ss);
             }
             std::cerr << ss.str();
-            generate_code(file);
+            
+            std::unique_ptr<LLVMContext> TheContext;
+            std::unique_ptr<Module> TheModule;
+            std::unique_ptr<IRBuilder<>> Builder;
+
+            TheContext = std::make_unique<LLVMContext>();
+            TheModule = std::make_unique<Module>(ss.str(), *TheContext);
+            // Create a new builder for the module.
+            Builder = std::make_unique<IRBuilder<>>(*TheContext);
+            
+            ExpressionList * exprs = new ExpressionList();
+            generate_code(exprs, *TheContext, *Builder, *TheModule);
         }
     }
 

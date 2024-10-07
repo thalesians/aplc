@@ -706,3 +706,34 @@ void generate_code(ExpressionList *exprs, LLVMContext &context, IRBuilder<> &bui
         errs() << "Error: module verification failed!\n";
     }
 }
+
+
+
+
+
+/*
+main.cpp:(.text+0x3ca): undefined reference to `generate_code(std::vector<NExpression*, std::allocator<NExpression*> >*)'
+/usr/bin/ld: CMakeFiles/aplc.dir/codegen.cpp.o: in function `(anonymous namespace)::ForcePassLinking::ForcePassLinking()':
+codegen.cpp:(.text+0x4f): undefined reference to `llvm::createArgumentPromotionPass(unsigned int)'
+/usr/bin/ld: codegen.cpp:(.text+0xf9): undefined reference to `llvm::createControlHeightReductionLegacyPass()'
+/usr/bin/ld: codegen.cpp:(.text+0x117): undefined reference to `llvm::createDomOnlyPrinterPass()'
+/usr/bin/ld: codegen.cpp:(.text+0x11c): undefined reference to `llvm::createDomPrinterPass()'
+/usr/bin/ld: codegen.cpp:(.text+0x121): undefined reference to `llvm::createDomOnlyViewerPass()'
+/usr/bin/ld: codegen.cpp:(.text+0x126): undefined reference to `llvm::createDomViewerPass()'
+/usr/bin/ld: codegen.cpp:(.text+0x145): undefined reference to `llvm::createGCOVProfilerPass(llvm::GCOVOptions const&)'
+/usr/bin/ld: codegen.cpp:(.text+0x163): undefined reference to `llvm::createPGOInstrumentationGenLegacyPass(bool)'
+/usr/bin/ld: codegen.cpp:(.text+0x196): undefined reference to `llvm::createPGOInstrumentationUseLegacyPass(llvm::StringRef, bool)'
+/usr/bin/ld: codegen.cpp:(.text+0x1bc): undefined reference to `llvm::createPGOInstrumentationGenCreateVarLegacyPass(llvm::StringRef)'
+/usr/bin/ld: codegen.cpp:(.text+0x1c9): undefined reference to `llvm::createPGOIndirectCallPromotionLegacyPass(bool, bool)'
+/usr/bin/ld: codegen.cpp:(.text+0x1ce): undefined reference to `llvm::createPGOMemOPSizeOptLegacyPass()'
+/usr/bin/ld: codegen.cpp:(.text+0x20f): undefined reference to `llvm::createInstrProfilingLegacyPass(llvm::InstrProfOptions const&, bool)'
+/usr/bin/ld: codegen.cpp:(.text+0x225): undefined reference to `llvm::createFunctionImportPass()'
+/usr/bin/ld: codegen.cpp:(.text+0x308): undefined reference to `llvm::createLoopUnswitchPass(bool, bool)'
+/usr/bin/ld: codegen.cpp:(.text+0x36e): undefined reference to `llvm::createPostDomOnlyPrinterPass()'
+/usr/bin/ld: codegen.cpp:(.text+0x373): undefined reference to `llvm::createPostDomPrinterPass()'
+/usr/bin/ld: codegen.cpp:(.text+0x378): undefined reference to `llvm::createPostDomOnlyViewerPass()'
+/usr/bin/ld: codegen.cpp:(.text+0x37d): undefined reference to `llvm::createPostDomViewerPass()'
+/usr/bin/ld: codegen.cpp:(.text+0x3e4): undefined reference to `llvm::createJumpThreadingPass(bool, int)'
+/usr/bin/ld: codegen.cpp:(.text+0x402): undefined reference to `llvm::createEntryExitInstrumenterPass()'
+/usr/bin/ld: codegen.cpp:(.text+0x407): undefined reference to `llvm::createPostInlineEntryExitInstrumenterPass()'
+*/
