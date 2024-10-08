@@ -111,6 +111,7 @@ llvm::Function *generate_beta(Type *type_ptr)
     BasicBlock *block = BasicBlock::Create(mod->getContext(), "entry", func, 0);
     llvm::IRBuilder<> builder(my_context);
     builder.SetInsertPoint(block);
+    
     /*
     Value *el = builder.CreateStructGEP(func->arg_begin()->getParamByValType(), 1, 0);
     builder.CreateRet(builder.CreateLoad(func->arg_begin()->getParamByValType(), el));
@@ -509,7 +510,6 @@ llvm::Value *NArray::codeGen() {
 }
 
 llvm::Value *NBinaryOperator::codeGen() {
-    /*
     Value *L = lhs.codeGen();
     Value *R = rhs.codeGen();
     if (L == 0 || R == 0) return NULL;
@@ -527,7 +527,6 @@ llvm::Value *NBinaryOperator::codeGen() {
     default:
         return ErrorV("invalid binary operator");
     }
-    */
 
     return NULL;
 }
