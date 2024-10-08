@@ -189,9 +189,9 @@ llvm::Value *NAssign::codeGen() {
     llvm::Value *R = r.codeGen();
     if (!R) return NULL;
 
-    /*
     // TODO special case aplc array
-    std::cerr << "NAssign" << ident << std::endl;
+    std::cerr << "NAssign" << ident.str() << std::endl;
+    /*
     if (named_values[ident]->getType()->isArrayTy() && is_aplc_array(R)) {
     } else if (named_values[ident]->getType()->isArrayTy() && R->getType()->isArrayTy()) {
       // skip
