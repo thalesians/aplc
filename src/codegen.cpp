@@ -277,7 +277,6 @@ static llvm::Function *replace_unresolved(llvm::Function *F, int index, Type *ty
     // Create the new function...
     Function *NewF = Function::Create(FTy, F->getLinkage(), F->getName(), put_in_module ? mod : NULL);
 
-    /*
     ValueToValueMapTy vmap;
     Function::arg_iterator DestI = NewF->arg_begin();
     for (Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
@@ -285,8 +284,7 @@ static llvm::Function *replace_unresolved(llvm::Function *F, int index, Type *ty
         vmap[I] = DestI++;
     }
     SmallVector<ReturnInst *, 0> ri;
-    CloneFunctionInto(NewF, F, vmap, false, ri);
-    */
+    CloneFunctionInto(NewF, F, vmap, CloneFunctionChangeType::LocalChangesOnly, ri, "");
 
     return NewF;
 }
