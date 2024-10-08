@@ -127,12 +127,12 @@ llvm::Function *generate_beta(Type *type_ptr)
     FunctionType *func_type = FunctionType::get(cast<StructType>(type->getElementType())->getContainedType(1), func_args, false);
     Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "β", mod);
 
-    /*
     BasicBlock *block = BasicBlock::Create(mod->getContext(), "entry", func, 0);
     llvm::IRBuilder<> builder(my_context);
     builder.SetInsertPoint(block);
-    Value *el = builder.CreateStructGEP(func->arg_begin(), 1);
-    builder.CreateRet(builder.CreateLoad(el));
+    /*
+    Value *el = builder.CreateStructGEP(func->arg_begin()->getParamByValType(), 1, 0);
+    builder.CreateRet(builder.CreateLoad(func->arg_begin()->getParamByValType(), el));
     */
 
     return func;
@@ -145,11 +145,11 @@ llvm::Function *generate_putchar()
     FunctionType *func_type = FunctionType::get(builder.getVoidTy(), func_args, false);
     Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "putchar", mod);
 
-    /*
     BasicBlock *block = BasicBlock::Create(mod->getContext(), "entry", func, 0);
     llvm::IRBuilder<> builder(my_context);
     builder.SetInsertPoint(block);
 
+    /*
     static Value* const_ptr_12 = builder.CreateGlobalStringPtr("%lc");
     builder.CreateCall(named_values["__printf"], const_ptr_12, func->arg_begin());
     builder.CreateRetVoid();
@@ -323,7 +323,7 @@ llvm::Value *NApply::codeGen() {
             return new Argument(func->getType(), apply->getName());
         }
     } else if (is_aplc_array(func) && apply->getType()->isIntegerTy()) {
-        Value *array_data = builder.CreateStructGEP(func, 1);
+        Value *array_data = builder.CreateStructGEP(func->arg_begin()->getParamByValType(), 1, 0);
         Value *Idxs[] = { builder.getInt64(0), apply };
         return builder.CreateLoad(builder.CreateGEP(array_data, ArrayRef<Value *>(Idxs)));
     } else if (func->getType()->isArrayTy() && isa<ConstantInt>(apply)) {
