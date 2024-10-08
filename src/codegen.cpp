@@ -191,19 +191,19 @@ llvm::Value *NAssign::codeGen() {
 
     // TODO special case aplc array
     std::cerr << "NAssign" << ident.str() << std::endl;
-    /*
-    if (named_values[ident]->getType()->isArrayTy() && is_aplc_array(R)) {
-    } else if (named_values[ident]->getType()->isArrayTy() && R->getType()->isArrayTy()) {
+    if (named_values[ident.str()]->getType()->isArrayTy() && is_aplc_array(R)) {
+    } else if (named_values[ident.str()]->getType()->isArrayTy() && R->getType()->isArrayTy()) {
       // skip
-    } else if (named_values[ident]->getType() != R->getType()) {
+    } else if (named_values[ident.str()]->getType() != R->getType()) {
+        /*
         raw_fd_ostream o(fileno(stderr), false);
         named_values[ident]->getType()->print(o);
         std::cerr << std::endl;
         R->getType()->print(o);
         std::cerr << std::endl;
         return ErrorV("Types don't match in assignment");
+        */
     }
-    */
 
     named_values[ident.str()] = R;
     return R;
