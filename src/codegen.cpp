@@ -89,7 +89,6 @@ llvm::Function *generate_identity()
     FunctionType *func_type = FunctionType::get(StructType::create(func_args), func_args, false);
     Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "ι");
 
-    /*
     BasicBlock *block = BasicBlock::Create(mod->getContext(), "entry", func, 0);
     llvm::IRBuilder<> builder(my_context);
     builder.SetInsertPoint(block);
@@ -99,7 +98,6 @@ llvm::Function *generate_identity()
         retvals.push_back(I);
     }
     builder.CreateAggregateRet(&retvals[0], retvals.size());
-    */
 
     return func;
 }
