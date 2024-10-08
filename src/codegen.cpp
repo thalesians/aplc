@@ -182,7 +182,7 @@ static bool is_aplc_array(Value *val)
 llvm::Value *NAssign::codeGen() {
     Value *id = l.codeGen();
     if (isa<Argument>(id)) {
-        /* named_values[id->getName()] = id; */
+        named_values[id->getName().str()] = id;
     }
     llvm::StringRef ident = id->getName();
     /* std::cerr << ident << std::endl; */
