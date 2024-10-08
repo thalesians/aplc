@@ -112,10 +112,8 @@ llvm::Function *generate_beta(Type *type_ptr)
     llvm::IRBuilder<> builder(my_context);
     builder.SetInsertPoint(block);
     
-    /*
-    Value *el = builder.CreateStructGEP(func->arg_begin()->getParamByValType(), 1, 0);
+    Value *el = builder.CreateStructGEP(func->arg_begin()->getParamByValType(), func->arg_begin(), 1);
     builder.CreateRet(builder.CreateLoad(func->arg_begin()->getParamByValType(), el));
-    */
 
     return func;
 }
@@ -131,11 +129,11 @@ llvm::Function *generate_putchar()
     llvm::IRBuilder<> builder(my_context);
     builder.SetInsertPoint(block);
 
-    /*
     static Value* const_ptr_12 = builder.CreateGlobalStringPtr("%lc");
-    builder.CreateCall(named_values["__printf"], const_ptr_12, func->arg_begin());
+
+    Value *args_[] = { const_ptr_12, func->arg_begin() };
+    builder.CreateCall(func_type, named_values["__printf"], ArrayRef<Value *>(args_), "", llvm::MDNode::get(mod->getContext(), nullptr));
     builder.CreateRetVoid();
-    */
 
     return func;
 }
@@ -295,7 +293,6 @@ llvm::Value *NApply::codeGen() {
             return ConstantArray::get(ArrayType::get(result[0]->getType(), result.size()), result);
         }
     }
-    /*
     if (isa<Argument>(func) || (isa<ConstantStruct>(func) && isa<Argument>(builder.CreateExtractValue(func, 0)))) {
         if (isa<Argument>(apply)) {
             if (!isa<NIdentifier>(rhs)) {
@@ -305,9 +302,10 @@ llvm::Value *NApply::codeGen() {
             return new Argument(func->getType(), apply->getName());
         }
     } else if (is_aplc_array(func) && apply->getType()->isIntegerTy()) {
-        Value *array_data = builder.CreateStructGEP(func->arg_begin()->getParamByValType(), 1, 0);
+        Value *array_data = builder.CreateStructGEP(func->getType(), func, 1);
         Value *Idxs[] = { builder.getInt64(0), apply };
-        return builder.CreateLoad(builder.CreateGEP(array_data, ArrayRef<Value *>(Idxs)));
+        auto inner = builder.CreateGEP(array_data->getType(), array_data, ArrayRef<Value *>(Idxs));
+        return builder.CreateLoad(inner->getType(), inner);
     } else if (func->getType()->isArrayTy() && isa<ConstantInt>(apply)) {
         return builder.CreateExtractValue(func, cast<ConstantInt>(apply)->getZExtValue());
     } else if (apply->getType()->isArrayTy()) {
@@ -316,23 +314,26 @@ llvm::Value *NApply::codeGen() {
             Value *arg = builder.CreateExtractValue(apply, i);
             if (arg->getType()->isStructTy()) {
                 std::vector<Value *> args;
+                std::vector<Type *> arg_types;
                 for (size_t i = 0; i < cast<StructType>(arg->getType())->getNumElements(); ++i) {
                     args.push_back(builder.CreateExtractValue(arg, i));
+                    arg_types.push_back(arg->getType());
                 }
-                results.push_back(builder.CreateCall(func, args));
+                results.push_back(builder.CreateCall(llvm::FunctionType::get(func->getType(), ArrayRef<Type *>(arg_types), false), func, args));
             } else {
-                results.push_back(builder.CreateCall(func, builder.CreateExtractValue(apply, i)));
+                auto inner = builder.CreateExtractValue(apply, i);
+                results.push_back(builder.CreateCall(llvm::FunctionType::get(func->getType(), false), func, inner));
             }
         }
         if (!cast<Function>(func)->getReturnType()->isVoidTy()) {
             Value *array_alloc = builder.CreateAlloca(cast<Function>(func)->getReturnType(), builder.getInt64(results.size()));
             for (size_t i = 0; i < results.size(); ++i) {
                 Value *Idxs[] = { builder.getInt64(i) };
-                builder.CreateStore(results[i], builder.CreateGEP(array_alloc, ArrayRef<Value *>(Idxs)));
+                builder.CreateStore(results[i], builder.CreateGEP(array_alloc->getType(), array_alloc, ArrayRef<Value *>(Idxs)));
             }
-            return builder.CreateLoad(
-                    builder.CreateBitCast(array_alloc,
-                        PointerType::getUnqual(ArrayType::get(cast<Function>(func)->getReturnType(), results.size()))));
+            auto load = builder.CreateBitCast(array_alloc,
+                        PointerType::getUnqual(ArrayType::get(cast<Function>(func)->getReturnType(), results.size())));
+            return builder.CreateLoad(load->getType(), load);
         } else {
             return NULL;
         }
@@ -344,8 +345,9 @@ llvm::Value *NApply::codeGen() {
         }
 
         if (is_aplc_array(apply)) {
-            Value *array_size = builder.CreateLoad(builder.CreateStructGEP(apply, 0));
-            Value *array_data = builder.CreateStructGEP(apply, 1);
+            auto inner1 = builder.CreateStructGEP(apply->getType(), apply, 0);
+            Value *array_size = builder.CreateLoad(inner1->getType(), inner1);
+            Value *array_data = builder.CreateStructGEP(apply->getType(), apply, 1);
             Type *element_type = cast<ArrayType>(cast<PointerType>(array_data->getType())
                                                  ->getElementType())->getContainedType(0);
             if (!is_resolved(func_func)) {
@@ -360,7 +362,7 @@ llvm::Value *NApply::codeGen() {
                 alloca_size = builder.CreateAdd(alloca_size, builder.CreateMul(array_size, ConstantExpr::getSizeOf(element_type)));
                 Value *mem = builder.CreateAlloca(builder.getInt8Ty(), alloca_size);
                 ret = builder.CreateBitCast(mem, PointerType::getUnqual(array_real));
-                builder.CreateStore(array_size, builder.CreateStructGEP(ret, 0));
+                builder.CreateStore(array_size, builder.CreateStructGEP(ret->getType(), ret, 0));
             }
 
             BasicBlock* label_loop = BasicBlock::Create(mod->getContext(), "", builder.GetInsertBlock()->getParent(), 0);
@@ -371,9 +373,13 @@ llvm::Value *NApply::codeGen() {
             PHINode* indvar = builder.CreatePHI(builder.getInt64Ty(), 2);
             indvar->addIncoming(builder.getInt64(0), old);
             Value *Idxs[] = { builder.getInt64(0), indvar };
-            Value *arg = builder.CreateLoad(builder.CreateGEP(array_data, ArrayRef<Value *>(Idxs)));
+            auto gep = builder.CreateGEP(array_data->getType(), array_data, ArrayRef<Value *>(Idxs));
+            Value *arg = builder.CreateLoad(gep->getType(), gep);
             Value *result = builder.CreateCall(func_func, arg);
-            if (ret) builder.CreateStore(result, builder.CreateGEP(builder.CreateStructGEP(ret, 1), ArrayRef<Value *>(Idxs)));
+            if (ret) {
+                auto inner = builder.CreateStructGEP(ret->getType(), ret, 1);
+                builder.CreateStore(result, builder.CreateGEP(inner->getType(), inner, ArrayRef<Value *>(Idxs)));
+            }
             Value* nextindvar = builder.CreateBinOp(Instruction::Add, indvar, builder.getInt64(1));
             indvar->addIncoming(nextindvar, label_loop);
             builder.CreateCondBr(builder.CreateICmpEQ(nextindvar, array_size), label_loop_exit, label_loop);
@@ -394,7 +400,6 @@ llvm::Value *NApply::codeGen() {
             return builder.CreateCall(func_func, apply);
         }
     }
-    */
     return ErrorV("Something bad happened in NApply codegen");
 }
 
@@ -503,8 +508,8 @@ llvm::Value *NArray::codeGen() {
     Value *mem = builder.CreateAlloca(builder.getInt8Ty(), alloca_size);
     Value *ret = builder.CreateBitCast(mem, PointerType::getUnqual(array_type));
 
-    /* builder.CreateStore(builder.getInt64(values.size()), builder.CreateStructGEP(ret, 0)); */
-    /* builder.CreateStore(ConstantArray::get(array, values), builder.CreateBitCast(builder.CreateStructGEP(ret, 1), PointerType::getUnqual(array))); */
+    builder.CreateStore(builder.getInt64(values.size()), builder.CreateStructGEP(ret->getType(), ret, 0));
+    builder.CreateStore(ConstantArray::get(array, values), builder.CreateBitCast(builder.CreateStructGEP(ret->getType(), ret, 1), PointerType::getUnqual(array)));
 
     return ret;
 }
@@ -534,7 +539,6 @@ llvm::Value *NBinaryOperator::codeGen() {
 
 static void print_value(llvm::Function *printf, llvm::Value *val)
 {
-    /*
     static bool strings_generated = false;
     static Value *format_int, *format_str, *format_newline, *struct_beg, *struct_del, *struct_end, *array_beg, *array_end;
     if (!strings_generated) {
@@ -550,11 +554,13 @@ static void print_value(llvm::Function *printf, llvm::Value *val)
     }
 
     if (val->getType()->isIntegerTy()) {
-        builder.CreateCall(printf, format_int, val);
+        Value *args_[] = { format_int, val };
+        builder.CreateCall(printf, ArrayRef<Value *>(args_), "", llvm::MDNode::get(mod->getContext(), nullptr));
     } else if (val->getType()->isPointerTy()) {
         if (is_aplc_array(val)) {
-            Value *array_size = builder.CreateLoad(builder.CreateStructGEP(val, 0));
-            Value *array_data = builder.CreateStructGEP(val, 1);
+            auto gep__ = builder.CreateStructGEP(val->getType(), val, 0);
+            Value *array_size = builder.CreateLoad(gep__->getType(), gep__);
+            Value *array_data = builder.CreateStructGEP(val->getType(), val, 1);
 
             builder.CreateCall(printf, array_beg);
 
@@ -570,7 +576,9 @@ static void print_value(llvm::Function *printf, llvm::Value *val)
             indvar->addIncoming(builder.getInt64(0), old);
 
             Value *Idxs[] = { builder.getInt64(0), indvar };
-            builder.CreateCall(printf, format_int, builder.CreateLoad(builder.CreateGEP(array_data, ArrayRef<Value *>(Idxs))));
+            auto gep_ = builder.CreateGEP(array_data->getType(), array_data, ArrayRef<Value *>(Idxs));
+            Value *args_[] = { format_int, builder.CreateLoad(gep_->getType(), gep_, "") };
+            builder.CreateCall(printf, ArrayRef<Value *>(args_), "", llvm::MDNode::get(mod->getContext(), nullptr));
             builder.CreateCall(printf, struct_del);
 
             Value* nextindvar = builder.CreateBinOp(Instruction::Add, indvar, builder.getInt64(1));
@@ -579,11 +587,12 @@ static void print_value(llvm::Function *printf, llvm::Value *val)
             builder.SetInsertPoint(label_loop_exit);
 
             builder.CreateCall(printf, array_end);
-        } else if (builder.CreateLoad(val)->getType()->isStructTy()) {
+        } else if (builder.CreateLoad(val->getType(), val, "")->getType()->isStructTy()) {
             builder.CreateCall(printf, struct_beg);
-            size_t size = cast<StructType>(builder.CreateLoad(val)->getType())->getNumElements();
+            size_t size = cast<StructType>(builder.CreateLoad(val->getType(), val, "")->getType())->getNumElements();
             for (size_t i = 0; i < size; ++i) {
-                builder.CreateCall(printf, format_int, builder.CreateLoad(builder.CreateStructGEP(val, i)));
+                Value *args_[] = { format_int, builder.CreateStructGEP(val->getType(), val, i) };
+                builder.CreateCall(printf, ArrayRef<Value *>(args_), "", llvm::MDNode::get(mod->getContext(), nullptr));
                 if (i != size - 1) builder.CreateCall(printf, struct_del);
             }
             builder.CreateCall(printf, struct_end);
@@ -592,7 +601,8 @@ static void print_value(llvm::Function *printf, llvm::Value *val)
         builder.CreateCall(printf, array_beg);
         size_t size = cast<ArrayType>(val->getType())->getNumElements();
         for (size_t i = 0; i < size; ++i) {
-            builder.CreateCall(printf, format_int, builder.CreateExtractValue(val, i));
+            Value *args_[] = { format_int, builder.CreateExtractValue(val, i) };
+            builder.CreateCall(printf, ArrayRef<Value *>(args_), "", llvm::MDNode::get(mod->getContext(), nullptr));
             if (i != size - 1) builder.CreateCall(printf, struct_del);
         }
         builder.CreateCall(printf, array_end);
@@ -601,16 +611,15 @@ static void print_value(llvm::Function *printf, llvm::Value *val)
         builder.CreateCall(printf, struct_beg);
         size_t size = cast<StructType>(val->getType())->getNumElements();
         for (size_t i = 0; i < size; ++i) {
-            builder.CreateCall(printf, format_int, builder.CreateExtractValue(val, i));
+            Value *args_[] = { format_int, builder.CreateExtractValue(val, i) };
+            builder.CreateCall(printf, ArrayRef<Value *>(args_), "", llvm::MDNode::get(mod->getContext(), nullptr));
             if (i != size - 1) builder.CreateCall(printf, struct_del);
         }
         builder.CreateCall(printf, struct_end);
     }
     builder.CreateCall(printf, format_newline);
-    */
 }
 
-//void generate_code(ExpressionList *exprs)
 void generate_code(ExpressionList *exprs, LLVMContext &context, IRBuilder<> &builder, Module &module)
 {
     /*
