@@ -195,14 +195,12 @@ llvm::Value *NAssign::codeGen() {
     } else if (named_values[ident.str()]->getType()->isArrayTy() && R->getType()->isArrayTy()) {
       // skip
     } else if (named_values[ident.str()]->getType() != R->getType()) {
-        /*
         raw_fd_ostream o(fileno(stderr), false);
-        named_values[ident]->getType()->print(o);
+        named_values[ident.str()]->getType()->print(o);
         std::cerr << std::endl;
         R->getType()->print(o);
         std::cerr << std::endl;
         return ErrorV("Types don't match in assignment");
-        */
     }
 
     named_values[ident.str()] = R;
