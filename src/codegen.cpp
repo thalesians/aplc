@@ -205,7 +205,7 @@ llvm::Value *NAssign::codeGen() {
     }
     */
 
-    /* named_values[ident] = R; */
+    named_values[ident.str()] = R;
     return R;
 }
 
