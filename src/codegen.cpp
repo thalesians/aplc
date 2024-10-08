@@ -22,25 +22,6 @@
 
 using namespace llvm;
 
-/*
-void generate_code(ExpressionList *exprs, LLVMContext &context, IRBuilder<> &builder, Module &module) {
-    // Iterate through expressions in the AST
-    for (auto expr : *exprs) {
-        // Code generation for each type of expression
-        if (auto *literal = dynamic_cast<NInteger *>(expr)) {
-            // Example of handling integer literals
-            builder.CreateRet(ConstantInt::get(context, APInt(32, literal->value)));
-        } 
-        // Add cases for other types of expressions here (e.g., functions, variables, operations)
-    }
-
-    // Verify the module
-    if (verifyModule(module, &errs())) {
-        errs() << "Error: module verification failed!\n";
-    }
-}
-*/
-
 using namespace llvm;
 
 static LLVMContext my_context;
@@ -292,7 +273,6 @@ llvm::Value *NUnaryOperator::codeGen() {
 }
 
 llvm::Value *NApply::codeGen() {
-    /*
     static std::map<std::string, int> projection_operators;
     static bool projection_operators_generated;
     if (!projection_operators_generated) {
@@ -303,17 +283,18 @@ llvm::Value *NApply::codeGen() {
 
     llvm::Value *func = lhs.codeGen();
     llvm::Value *apply = rhs.codeGen();
-    if (isa<Argument>(func) && projection_operators.find(func->getName()) != projection_operators.end()) {
+    if (isa<Argument>(func) && projection_operators.find(func->getName().str()) != projection_operators.end()) {
         if (apply->getType()->isStructTy()) {
-            return builder.CreateExtractValue(apply, projection_operators[func->getName()]);
+            return builder.CreateExtractValue(apply, projection_operators[func->getName().str()]);
         } else if (apply->getType()->isArrayTy()) {
             std::vector<Constant *> result;
             for (size_t i = 0; i < cast<ArrayType>(apply->getType())->getNumElements(); ++i) {
-                result.push_back(cast<Constant>(builder.CreateExtractValue(builder.CreateExtractValue(apply, i), projection_operators[func->getName()])));
+                result.push_back(cast<Constant>(builder.CreateExtractValue(builder.CreateExtractValue(apply, i), projection_operators[func->getName().str()])));
             }
             return ConstantArray::get(ArrayType::get(result[0]->getType(), result.size()), result);
         }
     }
+    /*
     if (isa<Argument>(func) || (isa<ConstantStruct>(func) && isa<Argument>(builder.CreateExtractValue(func, 0)))) {
         if (isa<Argument>(apply)) {
             if (!isa<NIdentifier>(rhs)) {
