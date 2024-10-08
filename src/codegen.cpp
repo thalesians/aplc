@@ -64,7 +64,7 @@ namespace llvm {
 struct UnresolvedType : public Type {
     int x;
     UnresolvedType(int x) : Type(mod->getContext(), getTypeID()), x(x) {}
-/*
+
     static UnresolvedType *get(int x) {
         UnresolvedType *ret = unresolved_type_map[x];
         if (!ret) {
@@ -72,7 +72,7 @@ struct UnresolvedType : public Type {
         }
         return ret;
     }
-*/
+
     virtual TypeID getTypeID() const { return MetadataTyID; }
     static inline bool classof(const Type *b) {
         return b->getTypeID() == MetadataTyID;
@@ -112,13 +112,11 @@ llvm::Function *generate_alpha(Type *type_ptr)
     FunctionType *func_type = FunctionType::get(cast<StructType>(type->getElementType())->getContainedType(0), func_args, false);
     Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "α", mod);
 
-    /*
     BasicBlock *block = BasicBlock::Create(mod->getContext(), "entry", func, 0);
     llvm::IRBuilder<> builder(my_context);
     builder.SetInsertPoint(block);
-    Value *el = builder.CreateStructGEP(func->arg_begin(), 0);
-    builder.CreateRet(builder.CreateLoad(el));
-    */
+    Value *el = builder.CreateStructGEP(func->arg_begin()->getParamByValType(), 0, 0);
+    builder.CreateRet(builder.CreateLoad(func->arg_begin()->getParamByValType(), el));
 
     return func;
 }
