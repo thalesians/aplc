@@ -63,8 +63,8 @@ static std::map<int, llvm::UnresolvedType *> unresolved_type_map;
 namespace llvm {
 struct UnresolvedType : public Type {
     int x;
+    UnresolvedType(int x) : Type(mod->getContext(), getTypeID()), x(x) {}
 /*
-    UnresolvedType(int x) : Type(mod->getContext(), NumContainedTys), x(x) {}
     static UnresolvedType *get(int x) {
         UnresolvedType *ret = unresolved_type_map[x];
         if (!ret) {
@@ -72,12 +72,10 @@ struct UnresolvedType : public Type {
         }
         return ret;
     }
-    virtual TypeID getTypeID() const { return NumContainedTys; }
 */
+    virtual TypeID getTypeID() const { return MetadataTyID; }
     static inline bool classof(const Type *b) {
-        /*
-        return b->getTypeID() == NumContainedTys;
-        */
+        return b->getTypeID() == MetadataTyID;
         return false; // see above
     }
 };
