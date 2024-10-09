@@ -1,4 +1,4 @@
-#include "codegen.h"
+﻿#include "codegen.h"
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/IRBuilder.h>
@@ -13,6 +13,7 @@
 #include <llvm/IR/ValueMap.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/LinkAllPasses.h>
+#include <llvm/Passes/PassBuilder.h>
 
 #include <cstdio>
 #include <map>
@@ -68,7 +69,7 @@ llvm::Function *generate_identity()
     func_args.push_back(builder.getInt64Ty());
     func_args.push_back(builder.getInt64Ty());
     FunctionType *func_type = FunctionType::get(StructType::create(func_args), func_args, false);
-    Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "ι");
+    Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "╬╣");
 
     BasicBlock *block = BasicBlock::Create(mod->getContext(), "entry", func, 0);
     llvm::IRBuilder<> builder(my_context);
@@ -88,8 +89,8 @@ llvm::Function *generate_alpha(Type *type_ptr)
     PointerType *type = cast<PointerType>(type_ptr);
     std::vector<Type *> func_args;
     func_args.push_back(type);
-    FunctionType *func_type = FunctionType::get(cast<StructType>(type->getElementType())->getContainedType(0), func_args, false);
-    Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "α", mod);
+    FunctionType *func_type = FunctionType::get(cast<StructType>(type->getArrayElementType())->getContainedType(0), func_args, false);
+    Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "╬▒", mod);
 
     BasicBlock *block = BasicBlock::Create(mod->getContext(), "entry", func, 0);
     llvm::IRBuilder<> builder(my_context);
@@ -105,8 +106,8 @@ llvm::Function *generate_beta(Type *type_ptr)
     PointerType *type = cast<PointerType>(type_ptr);
     std::vector<Type *> func_args;
     func_args.push_back(type);
-    FunctionType *func_type = FunctionType::get(cast<StructType>(type->getElementType())->getContainedType(1), func_args, false);
-    Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "β", mod);
+    FunctionType *func_type = FunctionType::get(cast<StructType>(type->getArrayElementType())->getContainedType(1), func_args, false);
+    Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "╬▓", mod);
 
     BasicBlock *block = BasicBlock::Create(mod->getContext(), "entry", func, 0);
     llvm::IRBuilder<> builder(my_context);
@@ -147,9 +148,9 @@ static bool is_aplc_array(Value *val)
     PointerType *tmp1;
     ArrayType *tmp;
     return (tmp1 = dyn_cast<PointerType>(val->getType())) &&
-           tmp1->getElementType()->isStructTy() &&
-           tmp1->getElementType()->getNumContainedTypes() == 2 &&
-           (tmp = dyn_cast<ArrayType>(tmp1->getElementType()->getContainedType(1))) &&
+           tmp1->getArrayElementType()->isStructTy() &&
+           tmp1->getArrayElementType()->getNumContainedTypes() == 2 &&
+           (tmp = dyn_cast<ArrayType>(tmp1->getArrayElementType()->getContainedType(1))) &&
            tmp->getNumElements() == 0;
 }
 
@@ -275,8 +276,8 @@ llvm::Value *NApply::codeGen() {
     static std::map<std::string, int> projection_operators;
     static bool projection_operators_generated;
     if (!projection_operators_generated) {
-        projection_operators["α"] = 0;
-        projection_operators["β"] = 1;
+        projection_operators["╬▒"] = 0;
+        projection_operators["╬▓"] = 1;
         projection_operators_generated = true;
     }
 
@@ -349,7 +350,7 @@ llvm::Value *NApply::codeGen() {
             Value *array_size = builder.CreateLoad(inner1->getType(), inner1);
             Value *array_data = builder.CreateStructGEP(apply->getType(), apply, 1);
             Type *element_type = cast<ArrayType>(cast<PointerType>(array_data->getType())
-                                                 ->getElementType())->getContainedType(0);
+                                                 ->getArrayElementType())->getContainedType(0);
             if (!is_resolved(func_func)) {
                 func_func = replace_unresolved(func_func, 0, element_type, true);
             }
@@ -622,7 +623,6 @@ static void print_value(llvm::Function *printf, llvm::Value *val)
 
 void generate_code(ExpressionList *exprs, LLVMContext &context, IRBuilder<> &builder, Module &module)
 {
-    /*
     mod = new Module("main", my_context);
 
     // main
@@ -644,7 +644,9 @@ void generate_code(ExpressionList *exprs, LLVMContext &context, IRBuilder<> &bui
     builder.SetInsertPoint(bblock);
 
     static Value* zero_initializer = builder.CreateGlobalStringPtr("");
-    builder.CreateCall(named_values["__setlocale"], builder.getInt32(LC_ALL), zero_initializer);
+    Value *args_[] = { builder.getInt32(LC_ALL), zero_initializer };
+    Type *arg_types_[] = { args_[0]->getType(), args_[1]->getType() };
+    builder.CreateCall(llvm::FunctionType::get(named_values["__setlocale"]->getType(), ArrayRef<Type *>(arg_types_), false), named_values["__setlocale"], ArrayRef<Value *>(args_), "", llvm::MDNode::get(mod->getContext(), nullptr));
 
     // globals
     named_values["ι"] = generate_identity();
@@ -663,25 +665,19 @@ void generate_code(ExpressionList *exprs, LLVMContext &context, IRBuilder<> &bui
 
     std::cerr << "Code is generated." << std::endl;
 
+    LoopAnalysisManager lam;
+    FunctionAnalysisManager fam;
+    CGSCCAnalysisManager cgam;
+    ModuleAnalysisManager mam;
 
-    ModulePassManager pm;
-    pm.addPass(createFunctionInliningPass());
-    pm.addPass(createPrintModulePass(outs()));
-    pm.run(*mod);
-    */
+    PassBuilder pb;
+    
+    pb.registerModuleAnalyses(mam);
+    pb.registerCGSCCAnalyses(cgam);
+    pb.registerFunctionAnalyses(fam);
+    pb.registerLoopAnalyses(lam);
+    pb.crossRegisterProxies(lam, fam, cgam, mam);
 
-    // Iterate through expressions in the AST
-    for (auto expr : *exprs) {
-        // Code generation for each type of expression
-        if (auto *literal = dynamic_cast<NInteger *>(expr)) {
-            // Example of handling integer literals
-            builder.CreateRet(ConstantInt::get(context, APInt(32, literal->value)));
-        } 
-        // Add cases for other types of expressions here (e.g., functions, variables, operations)
-    }
-
-    // Verify the module
-    if (verifyModule(module, &errs())) {
-        errs() << "Error: module verification failed!\n";
-    }
+    ModulePassManager pm = pb.buildPerModuleDefaultPipeline(OptimizationLevel::O2);
+    pm.run(*mod, mam);
 }
