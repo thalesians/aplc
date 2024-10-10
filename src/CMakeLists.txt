@@ -44,7 +44,7 @@ add_executable(aplc main print codegen ${BISON_MyParser_OUTPUTS} ${FLEX_MyScanne
 #set_target_properties(aplc PROPERTIES COMPILE_FLAGS ${LLVM_CFLAGS})
 #set_target_properties(aplc PROPERTIES LINK_FLAGS ${LLVM_LD_FLAGS})
 # Link against LLVM libraries
-target_link_libraries(aplc ${llvm_libs})
+target_link_libraries(aplc ${llvm_libs} LLVMInterpreter)
 #target_link_libraries(aplc LLVM-15 LLVMSupport)
 
 #if(LLVM_VERSION STRGREATER "3.0")

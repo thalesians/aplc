@@ -15,6 +15,8 @@
 #include <llvm/LinkAllPasses.h>
 #include <llvm/Passes/PassBuilder.h>
 
+#include <llvm/ExecutionEngine/Interpreter.h>
+
 #include <cstdio>
 #include <map>
 
@@ -65,6 +67,7 @@ struct UnresolvedType : public Type {
 
 llvm::Function *generate_identity()
 {
+    std::cerr << "In generate_identity()..." << std::endl;
     std::vector<Type *> func_args;
     func_args.push_back(builder.getInt64Ty());
     func_args.push_back(builder.getInt64Ty());
@@ -86,6 +89,7 @@ llvm::Function *generate_identity()
 
 llvm::Function *generate_alpha(Type *type_ptr)
 {
+    std::cerr << "In generate_alpha(...)..." << std::endl;
     PointerType *type = cast<PointerType>(type_ptr);
     std::vector<Type *> func_args;
     func_args.push_back(type);
@@ -103,6 +107,7 @@ llvm::Function *generate_alpha(Type *type_ptr)
 
 llvm::Function *generate_beta(Type *type_ptr)
 {
+    std::cerr << "In generate_alpha(...)..." << std::endl;
     PointerType *type = cast<PointerType>(type_ptr);
     std::vector<Type *> func_args;
     func_args.push_back(type);
@@ -121,6 +126,7 @@ llvm::Function *generate_beta(Type *type_ptr)
 
 llvm::Function *generate_putchar()
 {
+    std::cerr << "In generate_putchar(...)..." << std::endl;
     std::vector<Type *> func_args;
     func_args.push_back(builder.getInt64Ty());
     FunctionType *func_type = FunctionType::get(builder.getVoidTy(), func_args, false);
@@ -139,12 +145,14 @@ llvm::Function *generate_putchar()
     return func;
 }
 
-llvm::Value *NControl::codeGen() {
+llvm::Value * NControl::codeGen() {
+    std::cerr << "In NControl::codeGen()..." << std::endl;
     return ErrorV("NControl codegen not implemented yet");
 }
 
 static bool is_aplc_array(Value *val)
 {
+    std::cerr << "In is_aplc_array(Value *val)..." << std::endl;
     PointerType *tmp1;
     ArrayType *tmp;
     return (tmp1 = dyn_cast<PointerType>(val->getType())) &&
@@ -154,7 +162,8 @@ static bool is_aplc_array(Value *val)
            tmp->getNumElements() == 0;
 }
 
-llvm::Value *NAssign::codeGen() {
+llvm::Value * NAssign::codeGen() {
+    std::cerr << "In NAssign::codeGen()..." << std::endl;
     Value *id = l.codeGen();
     if (isa<Argument>(id)) {
         named_values[id->getName().str()] = id;
@@ -182,7 +191,8 @@ llvm::Value *NAssign::codeGen() {
     return R;
 }
 
-llvm::Value *NLambda::codeGen() {
+llvm::Value * NLambda::codeGen() {
+    std::cerr << "In NLambda::codeGen()..." << std::endl;
     Value* lhs = l.codeGen();
     Value* mhs = m.codeGen();
 
@@ -209,12 +219,14 @@ llvm::Value *NLambda::codeGen() {
     return NewF;
 }
 
-llvm::Value *NComparisonOperator::codeGen() {
+llvm::Value * NComparisonOperator::codeGen() {
+    std::cerr << "In NComparisonOperator::codeGen()..." << std::endl;
     return ErrorV("NComparisonOperator codegen not implemented yet");
 }
 
 static bool is_resolved(llvm::Function *F)
 {
+    std::cerr << "In is_resolved(llvm::Function *F)..." << std::endl;
     std::vector<Type *> ArgTypes;
     for (llvm::Function::arg_iterator I = F->arg_begin(), E = F->arg_end();
         I != E; ++I) {
@@ -232,6 +244,7 @@ static bool is_resolved(llvm::Function *F)
 
 static llvm::Function *replace_unresolved(llvm::Function *F, int index, Type *type, bool put_in_module)
 {
+    std::cerr << "In replace_unresolved(llvm::Function *F, int index, Type *type, bool put_in_module)..." << std::endl;
     std::vector<Type*> ArgTypes;
     for (Function::arg_iterator I = F->arg_begin(), E = F->arg_end();
         I != E; ++I) {
@@ -268,11 +281,13 @@ static llvm::Function *replace_unresolved(llvm::Function *F, int index, Type *ty
     return NewF;
 }
 
-llvm::Value *NUnaryOperator::codeGen() {
+llvm::Value * NUnaryOperator::codeGen() {
+    std::cerr << "In NUnaryOperator::codeGen()..." << std::endl;
     return ErrorV("NUnaryOperator codegen not implemented yet");
 }
 
-llvm::Value *NApply::codeGen() {
+llvm::Value * NApply::codeGen() {
+    std::cerr << "In NApply::codeGen()..." << std::endl;
     static std::map<std::string, int> projection_operators;
     static bool projection_operators_generated;
     if (!projection_operators_generated) {
@@ -404,7 +419,8 @@ llvm::Value *NApply::codeGen() {
     return ErrorV("Something bad happened in NApply codegen");
 }
 
-llvm::Value *NFuncType::codeGen() {
+llvm::Value * NFuncType::codeGen() {
+    std::cerr << "In NFuncType::codeGen()..." << std::endl;
     Value *l = lhs.codeGen();
     Value *r = rhs.codeGen();
 
@@ -420,11 +436,13 @@ llvm::Value *NFuncType::codeGen() {
     return new Argument(dummy->getType());
 }
 
-llvm::Value *NInteger::codeGen() {
+llvm::Value * NInteger::codeGen() {
+    std::cerr << "In NInteger::codeGen()..." << std::endl;
     return ConstantInt::get(builder.getInt64Ty(), value);
 }
 
-llvm::Value *NIdentifier::codeGen() {
+llvm::Value * NIdentifier::codeGen() {
+    std::cerr << "In NIdentifier::codeGen()..." << std::endl;
     if (name == "int") {
         return new Argument(builder.getInt64Ty());
     } else {
@@ -436,7 +454,8 @@ llvm::Value *NIdentifier::codeGen() {
     }
 }
 
-llvm::Value *NTuple::codeGen() {
+llvm::Value * NTuple::codeGen() {
+    std::cerr << "In NTuple::codeGen()..." << std::endl;
     std::vector<Value *> values;
     std::vector<Constant *> constants;
     std::vector<Type *> types;
@@ -482,7 +501,8 @@ llvm::Value *NTuple::codeGen() {
     return tuple;
 }
 
-llvm::Value *NArray::codeGen() {
+llvm::Value * NArray::codeGen() {
+    std::cerr << "In NArray::codeGen()..." << std::endl;
     std::vector<Constant *> values;
     Type *type = NULL;
     for (size_t i = 0; i < l.size(); ++i) {
@@ -515,7 +535,8 @@ llvm::Value *NArray::codeGen() {
     return ret;
 }
 
-llvm::Value *NBinaryOperator::codeGen() {
+llvm::Value * NBinaryOperator::codeGen() {
+    std::cerr << "In NBinaryOperator::codeGen()..." << std::endl;
     Value *L = lhs.codeGen();
     Value *R = rhs.codeGen();
     if (L == 0 || R == 0) return NULL;
@@ -540,6 +561,7 @@ llvm::Value *NBinaryOperator::codeGen() {
 
 static void print_value(llvm::Function *printf, llvm::Value *val)
 {
+    std::cerr << "In print_value(llvm::Function *printf, llvm::Value *val)..." << std::endl;
     static bool strings_generated = false;
     static Value *format_int, *format_str, *format_newline, *struct_beg, *struct_del, *struct_end, *array_beg, *array_end;
     if (!strings_generated) {
@@ -623,6 +645,8 @@ static void print_value(llvm::Function *printf, llvm::Value *val)
 
 void generate_code(ExpressionList *exprs, LLVMContext &context, IRBuilder<> &builder, Module &module)
 {
+    std::cerr << "In generate_code(ExpressionList *exprs, LLVMContext &context, IRBuilder<> &builder, Module &module)..." << std::endl;
+
     mod = &module;
 
     // main
@@ -673,6 +697,9 @@ void generate_code(ExpressionList *exprs, LLVMContext &context, IRBuilder<> &bui
     CGSCCAnalysisManager cgam;
     std::cerr << "Creating ModuleAnalysisManager..." << std::endl;
     ModuleAnalysisManager mam;
+    
+    // std::cerr << "Creating PrintModulePass..." << std::endl;
+    // PrintModulePass pmp;
 
     std::cerr << "Creating PassBuilder..." << std::endl;
     PassBuilder pb;
@@ -683,12 +710,105 @@ void generate_code(ExpressionList *exprs, LLVMContext &context, IRBuilder<> &bui
     pb.registerFunctionAnalyses(fam);
     pb.registerLoopAnalyses(lam);
     pb.crossRegisterProxies(lam, fam, cgam, mam);
+    pb.buildInlinerPipeline(llvm::OptimizationLevel::O0, llvm::ThinOrFullLTOPhase::None);
+    // pb.registerPrintModulePass(pmp);
 
     std::cerr << "Creating ModulePassManager..." << std::endl;
     ModulePassManager pm = pb.buildPerModuleDefaultPipeline(OptimizationLevel::O2);
 
+    // std::cerr << "Printing pass names..." << std::endl;
+    // pm.printPassNames(std::cerr);
+
     std::cerr << "Running ModulePassManager..." << std::endl;
     pm.run(*mod, mam);
+
+
+
+
+  EngineBuilder ebuilder{std::unique_ptr<llvm::Module>(mod)};
+  std::string ErrorMsg;
+  //ebuilder.setMArch(MArch);
+  //ebuilder.setMCPU(MCPU);
+  //ebuilder.setMAttrs(MAttrs);
+  //ebuilder.setRelocationModel(RelocModel);
+  //ebuilder.setCodeModel(CMModel);
+  ebuilder.setErrorStr(&ErrorMsg);
+  /*
+  ebuilder.setEngineKind(ForceInterpreter
+                        ? EngineKind::Interpreter
+                        : EngineKind::JIT);
+                        */
+
+  CodeGenOpt::Level OLvl = CodeGenOpt::Default;
+  ebuilder.setOptLevel(OLvl);
+
+  ExecutionEngine * EE = ebuilder.create();
+  if (!EE) {
+    if (!ErrorMsg.empty())
+      errs() << ": error creating EE: " << ErrorMsg << "\n";
+    else
+      errs() << ": unknown error creating EE!\n";
+    exit(1);
+  }
+
+  // EE->DisableLazyCompilation(NoLazyCompilation);
+
+  Function *EntryFn = func_main;
+  if (!EntryFn) {
+    errs() << "Entry function not found in module.\n";
+    return;
+  }
+
+  // If the program doesn't explicitly call exit, we will need the Exit 
+  // function later on to make an explicit call, so get the function now. 
+  /*
+  Constant *Exit = mod->getOrInsertFunction("exit", Type::getVoidTy(context),
+                                                    Type::getInt32Ty(context),
+                                                    NULL);
+  */
+  
+  // Reset errno to zero on entry to main.
+  errno = 0;
+ 
+  // Run static constructors.
+  EE->runStaticConstructorsDestructors(false);
+
+  for (Module::iterator I = mod->begin(), E = mod->end(); I != E; ++I) {
+    Function *Fn = &*I;
+    if (Fn != EntryFn && !Fn->isDeclaration())
+      EE->getPointerToFunction(Fn);
+  }
+
+  // Run main.
+  char * const *envp;
+  std::vector<std::string> InputArgv;
+  int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
+  std::cout << "Result: " << Result << std::endl;
+
+  // Run static destructors.
+  EE->runStaticConstructorsDestructors(true);
+  
+  // If the program didn't call exit explicitly, we should call it now. 
+  // This ensures that any atexit handlers get called correctly.
+  /*
+  if (Function *ExitF = dyn_cast<Function>(Exit)) {
+    std::vector<GenericValue> Args;
+    GenericValue ResultGV;
+    ResultGV.IntVal = APInt(32, Result);
+    Args.push_back(ResultGV);
+    EE->runFunction(ExitF, Args);
+    errs() << "ERROR: exit(" << Result << ") returned!\n";
+    abort();
+  } else {
+    errs() << "ERROR: exit defined with wrong prototype!\n";
+    abort();
+  }
+  */
+
+
+
+
+
 
     std::cerr << "All done!" << std::endl;
 }
