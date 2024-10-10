@@ -3,7 +3,7 @@
     #include <iconv.h>
     #include <llvm/Support/Casting.h>
     #include "node.h"
-    ExpressionList *file; /* the top level root node of our final AST */
+    ExpressionList *expression_list; /* the top level root node of our final AST */
 
     extern int yylex();
     void yyerror(const char *s) { printf("ERROR: %s\n", s); }
@@ -45,7 +45,7 @@
    calling an (NIdentifier*). It makes the compiler happy.
  */
 
-%type <exprvec> file exprs expr_list
+%type <exprvec> expression_list exprs expr_list
 %type <expr> expr expr_control expr_assign expr_lambda
 %type <expr> expr_logical_or expr_logical_and expr_logical_xor
 %type <expr> expr_comp_eq expr_comp_lt
@@ -56,7 +56,7 @@
 %type <expr> ident integer string
 %type <token> COMP_EQ COMP_LT COMP_BIT COMP_ADD COMP_MUL
 
-%start file
+%start expression_list
 
 %expect 3
 /*
@@ -67,8 +67,8 @@
 
 %%
 
-file : { file = new ExpressionList; }
-     | exprs { file = $1; }
+expression_list : { expression_list = new ExpressionList; }
+     | exprs { expression_list = $1; }
      ;
 
 exprs : expr { $$ = new ExpressionList; $$->push_back($<expr>1); }

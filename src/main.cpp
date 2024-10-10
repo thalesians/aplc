@@ -9,7 +9,7 @@
 #include "parser.h"
 #include "codegen.h"
 
-extern ExpressionList* file;
+extern ExpressionList* expression_list;
 extern int yyparse();
 extern int yylex();
 extern FILE *yyin;
@@ -60,13 +60,18 @@ int main(int argc, char **argv)
             }
         }
     } else {
+        std::cout << "Parsing..." << std::endl;
         yyparse();
-        if (file) {
+        std::cout << "Done parsing." << std::endl;
+        if (expression_list) {
+            std::cout << "Got an input expression list..." << std::endl;
             std::stringstream ss;
-            for (size_t i = 0; i < file->size(); ++i) {
-                (*file)[i]->print(ss);
+            for (size_t i = 0; i < expression_list->size(); ++i) {
+                (*expression_list)[i]->print(ss);
             }
+            std::cout << "Here is what I've read:" << std::endl;
             std::cerr << ss.str();
+            std::cout << "(done)" << std::endl;
             
             std::unique_ptr<LLVMContext> TheContext;
             std::unique_ptr<Module> TheModule;
@@ -77,8 +82,8 @@ int main(int argc, char **argv)
             // Create a new builder for the module.
             Builder = std::make_unique<IRBuilder<>>(*TheContext);
             
-            ExpressionList * exprs = new ExpressionList();
-            generate_code(exprs, *TheContext, *Builder, *TheModule);
+            // ExpressionList * exprs = new ExpressionList();
+            generate_code(expression_list, *TheContext, *Builder, *TheModule);
         }
     }
 
