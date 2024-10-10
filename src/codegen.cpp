@@ -291,14 +291,17 @@ llvm::Value * NApply::codeGen() {
     static std::map<std::string, int> projection_operators;
     static bool projection_operators_generated;
     if (!projection_operators_generated) {
+        std::cout << "In (1)..." << std::endl;
         projection_operators["α"] = 0;
         projection_operators["β"] = 1;
         projection_operators_generated = true;
     }
 
+    std::cout << "In (2)..." << std::endl;
     llvm::Value *func = lhs.codeGen();
     llvm::Value *apply = rhs.codeGen();
     if (isa<Argument>(func) && projection_operators.find(func->getName().str()) != projection_operators.end()) {
+        std::cout << "In (3)..." << std::endl;
         if (apply->getType()->isStructTy()) {
             return builder.CreateExtractValue(apply, projection_operators[func->getName().str()]);
         } else if (apply->getType()->isArrayTy()) {
@@ -310,25 +313,33 @@ llvm::Value * NApply::codeGen() {
         }
     }
     if (isa<Argument>(func) || (isa<ConstantStruct>(func) && isa<Argument>(builder.CreateExtractValue(func, 0)))) {
+        std::cout << "In (4)..." << std::endl;
         if (isa<Argument>(apply)) {
             if (!isa<NIdentifier>(rhs)) {
                 return ErrorV("Expected identifier in declaration");
             }
             std::cerr << "apply getname: " << apply->getName().str() << std::endl;
             return new Argument(func->getType(), apply->getName());
+        } else {
+            std::cout << "***Not an argument***" << std::endl;
+            std::cout << "apply getname: " << apply->getName().str() << std::endl;
         }
     } else if (is_aplc_array(func) && apply->getType()->isIntegerTy()) {
+        std::cout << "In (5)..." << std::endl;
         Value *array_data = builder.CreateStructGEP(func->getType(), func, 1);
         Value *Idxs[] = { builder.getInt64(0), apply };
         auto inner = builder.CreateGEP(array_data->getType(), array_data, ArrayRef<Value *>(Idxs));
         return builder.CreateLoad(inner->getType(), inner);
     } else if (func->getType()->isArrayTy() && isa<ConstantInt>(apply)) {
+        std::cout << "In (6)..." << std::endl;
         return builder.CreateExtractValue(func, cast<ConstantInt>(apply)->getZExtValue());
     } else if (apply->getType()->isArrayTy()) {
+        std::cout << "In (7)..." << std::endl;
         std::vector<Value *> results;
         for (size_t i = 0; i < cast<ArrayType>(apply->getType())->getNumElements(); ++i) {
             Value *arg = builder.CreateExtractValue(apply, i);
             if (arg->getType()->isStructTy()) {
+                std::cout << "In (8)..." << std::endl;
                 std::vector<Value *> args;
                 std::vector<Type *> arg_types;
                 for (size_t i = 0; i < cast<StructType>(arg->getType())->getNumElements(); ++i) {
@@ -337,11 +348,13 @@ llvm::Value * NApply::codeGen() {
                 }
                 results.push_back(builder.CreateCall(llvm::FunctionType::get(func->getType(), ArrayRef<Type *>(arg_types), false), func, args));
             } else {
+                std::cout << "In (9)..." << std::endl;
                 auto inner = builder.CreateExtractValue(apply, i);
                 results.push_back(builder.CreateCall(llvm::FunctionType::get(func->getType(), false), func, inner));
             }
         }
         if (!cast<Function>(func)->getReturnType()->isVoidTy()) {
+            std::cout << "In (10)..." << std::endl;
             Value *array_alloc = builder.CreateAlloca(cast<Function>(func)->getReturnType(), builder.getInt64(results.size()));
             for (size_t i = 0; i < results.size(); ++i) {
                 Value *Idxs[] = { builder.getInt64(i) };
@@ -351,16 +364,20 @@ llvm::Value * NApply::codeGen() {
                         PointerType::getUnqual(ArrayType::get(cast<Function>(func)->getReturnType(), results.size())));
             return builder.CreateLoad(load->getType(), load);
         } else {
+            std::cout << "In (11)..." << std::endl;
             return NULL;
         }
     } else {
+        std::cout << "In (12)..." << std::endl;
         llvm::Function *func_func;
         std::cerr << "I was here func func" << std::endl;
         if (!(func_func = llvm::dyn_cast<llvm::Function>(func))) {
+            std::cout << "In (13)..." << std::endl;
             return ErrorV("Non-function left arguments to NApply not supported yet");
         }
 
         if (is_aplc_array(apply)) {
+            std::cout << "In (14)..." << std::endl;
             auto inner1 = builder.CreateStructGEP(apply->getType(), apply, 0);
             Value *array_size = builder.CreateLoad(inner1->getType(), inner1);
             Value *array_data = builder.CreateStructGEP(apply->getType(), apply, 1);
@@ -403,6 +420,7 @@ llvm::Value * NApply::codeGen() {
 
             return ret;
         } else if (apply->getType()->isStructTy()) {
+            std::cout << "In (15)..." << std::endl;
             std::vector<Value *> args;
             for (size_t i = 0; i < cast<StructType>(apply->getType())->getNumElements(); ++i) {
                 args.push_back(builder.CreateExtractValue(apply, i));
@@ -413,6 +431,7 @@ llvm::Value * NApply::codeGen() {
             func_func = replace_unresolved(func_func, 0, builder.getVoidTy(), true);
             return builder.CreateCall(func_func, args);
         } else {
+            std::cout << "In (16)..." << std::endl;
             return builder.CreateCall(func_func, apply);
         }
     }
@@ -562,24 +581,29 @@ llvm::Value * NBinaryOperator::codeGen() {
 static void print_value(llvm::Function *printf, llvm::Value *val)
 {
     std::cerr << "In print_value(llvm::Function *printf, llvm::Value *val)..." << std::endl;
+    std::cout << "In (a)..." << std::endl;
     static bool strings_generated = false;
     static Value *format_int, *format_str, *format_newline, *struct_beg, *struct_del, *struct_end, *array_beg, *array_end;
     if (!strings_generated) {
-        format_int = builder.CreateGlobalStringPtr("%d");
-        format_str = builder.CreateGlobalStringPtr("%s");
-        format_newline = builder.CreateGlobalStringPtr("\n");
-        struct_beg = builder.CreateGlobalStringPtr("(");
-        struct_del = builder.CreateGlobalStringPtr(", ");
-        struct_end = builder.CreateGlobalStringPtr(")");
-        array_beg = builder.CreateGlobalStringPtr("[");
-        array_end = builder.CreateGlobalStringPtr("]");
+        std::cout << "In (b)..." << std::endl;
+        format_int = builder.CreateGlobalStringPtr("%d", "format_int", 0, mod);
+        format_str = builder.CreateGlobalStringPtr("%s", "format_str", 0, mod);
+        format_newline = builder.CreateGlobalStringPtr("\n", "format_newline", 0, mod);
+        struct_beg = builder.CreateGlobalStringPtr("(", "struct_beg", 0, mod);
+        struct_del = builder.CreateGlobalStringPtr(", ", "struct_del", 0, mod);
+        struct_end = builder.CreateGlobalStringPtr(")", "struct_end", 0, mod);
+        array_beg = builder.CreateGlobalStringPtr("[", "array_beg", 0, mod);
+        array_end = builder.CreateGlobalStringPtr("]", "array_end", 0, mod);
         strings_generated = true;
     }
 
+    std::cout << "In (c)..." << std::endl;
     if (val->getType()->isIntegerTy()) {
+        std::cout << "In (d)..." << std::endl;
         Value *args_[] = { format_int, val };
         builder.CreateCall(printf, ArrayRef<Value *>(args_), "", llvm::MDNode::get(mod->getContext(), nullptr));
     } else if (val->getType()->isPointerTy()) {
+        std::cout << "In (e)..." << std::endl;
         if (is_aplc_array(val)) {
             auto gep__ = builder.CreateStructGEP(val->getType(), val, 0);
             Value *array_size = builder.CreateLoad(gep__->getType(), gep__);
@@ -611,6 +635,7 @@ static void print_value(llvm::Function *printf, llvm::Value *val)
 
             builder.CreateCall(printf, array_end);
         } else if (builder.CreateLoad(val->getType(), val, "")->getType()->isStructTy()) {
+            std::cout << "In (f)..." << std::endl;
             builder.CreateCall(printf, struct_beg);
             size_t size = cast<StructType>(builder.CreateLoad(val->getType(), val, "")->getType())->getNumElements();
             for (size_t i = 0; i < size; ++i) {
@@ -621,6 +646,7 @@ static void print_value(llvm::Function *printf, llvm::Value *val)
             builder.CreateCall(printf, struct_end);
         }
     } else if (val->getType()->isArrayTy()) {
+        std::cout << "In (g)..." << std::endl;
         builder.CreateCall(printf, array_beg);
         size_t size = cast<ArrayType>(val->getType())->getNumElements();
         for (size_t i = 0; i < size; ++i) {
@@ -631,6 +657,7 @@ static void print_value(llvm::Function *printf, llvm::Value *val)
         builder.CreateCall(printf, array_end);
         return;
     } else if (val->getType()->isStructTy()) {
+        std::cout << "In (h)..." << std::endl;
         builder.CreateCall(printf, struct_beg);
         size_t size = cast<StructType>(val->getType())->getNumElements();
         for (size_t i = 0; i < size; ++i) {
@@ -640,7 +667,9 @@ static void print_value(llvm::Function *printf, llvm::Value *val)
         }
         builder.CreateCall(printf, struct_end);
     }
+    std::cout << "In (i)..." << std::endl;
     builder.CreateCall(printf, format_newline);
+    std::cout << "In (j)..." << std::endl;
 }
 
 void generate_code(ExpressionList *exprs, LLVMContext &context, IRBuilder<> &builder, Module &module)
@@ -724,7 +753,7 @@ void generate_code(ExpressionList *exprs, LLVMContext &context, IRBuilder<> &bui
 
 
 
-
+  std::cout << "Creating EngineBuilder..." << std::endl;
   EngineBuilder ebuilder{std::unique_ptr<llvm::Module>(mod)};
   std::string ErrorMsg;
   //ebuilder.setMArch(MArch);
