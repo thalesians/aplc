@@ -69,7 +69,7 @@ llvm::Function *generate_identity()
     func_args.push_back(builder.getInt64Ty());
     func_args.push_back(builder.getInt64Ty());
     FunctionType *func_type = FunctionType::get(StructType::create(func_args), func_args, false);
-    Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "╬╣");
+    Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "ι");
 
     BasicBlock *block = BasicBlock::Create(mod->getContext(), "entry", func, 0);
     llvm::IRBuilder<> builder(my_context);
@@ -90,7 +90,7 @@ llvm::Function *generate_alpha(Type *type_ptr)
     std::vector<Type *> func_args;
     func_args.push_back(type);
     FunctionType *func_type = FunctionType::get(cast<StructType>(type->getArrayElementType())->getContainedType(0), func_args, false);
-    Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "╬▒", mod);
+    Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "α", mod);
 
     BasicBlock *block = BasicBlock::Create(mod->getContext(), "entry", func, 0);
     llvm::IRBuilder<> builder(my_context);
@@ -107,7 +107,7 @@ llvm::Function *generate_beta(Type *type_ptr)
     std::vector<Type *> func_args;
     func_args.push_back(type);
     FunctionType *func_type = FunctionType::get(cast<StructType>(type->getArrayElementType())->getContainedType(1), func_args, false);
-    Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "╬▓", mod);
+    Function *func = Function::Create(func_type, GlobalValue::InternalLinkage, "β", mod);
 
     BasicBlock *block = BasicBlock::Create(mod->getContext(), "entry", func, 0);
     llvm::IRBuilder<> builder(my_context);
@@ -276,8 +276,8 @@ llvm::Value *NApply::codeGen() {
     static std::map<std::string, int> projection_operators;
     static bool projection_operators_generated;
     if (!projection_operators_generated) {
-        projection_operators["╬▒"] = 0;
-        projection_operators["╬▓"] = 1;
+        projection_operators["α"] = 0;
+        projection_operators["β"] = 1;
         projection_operators_generated = true;
     }
 
@@ -623,7 +623,7 @@ static void print_value(llvm::Function *printf, llvm::Value *val)
 
 void generate_code(ExpressionList *exprs, LLVMContext &context, IRBuilder<> &builder, Module &module)
 {
-    mod = new Module("main", my_context);
+    mod = &module;
 
     // main
     Type *func_main_args[] = { builder.getInt32Ty(), PointerType::get(builder.getInt8PtrTy(), 0) };
@@ -665,19 +665,30 @@ void generate_code(ExpressionList *exprs, LLVMContext &context, IRBuilder<> &bui
 
     std::cerr << "Code is generated." << std::endl;
 
+    std::cerr << "Creating LoopAnalysisManager..." << std::endl;
     LoopAnalysisManager lam;
+    std::cerr << "Creating FunctionAnalysisManager..." << std::endl;
     FunctionAnalysisManager fam;
+    std::cerr << "Creating CGSCCAnalysisManager..." << std::endl;
     CGSCCAnalysisManager cgam;
+    std::cerr << "Creating ModuleAnalysisManager..." << std::endl;
     ModuleAnalysisManager mam;
 
+    std::cerr << "Creating PassBuilder..." << std::endl;
     PassBuilder pb;
     
+    std::cerr << "Registering stuff with the PassBuilder..." << std::endl;
     pb.registerModuleAnalyses(mam);
     pb.registerCGSCCAnalyses(cgam);
     pb.registerFunctionAnalyses(fam);
     pb.registerLoopAnalyses(lam);
     pb.crossRegisterProxies(lam, fam, cgam, mam);
 
+    std::cerr << "Creating ModulePassManager..." << std::endl;
     ModulePassManager pm = pb.buildPerModuleDefaultPipeline(OptimizationLevel::O2);
+
+    std::cerr << "Running ModulePassManager..." << std::endl;
     pm.run(*mod, mam);
+
+    std::cerr << "All done!" << std::endl;
 }

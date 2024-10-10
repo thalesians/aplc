@@ -23,6 +23,7 @@ void usage(char *arg)
 int main(int argc, char **argv)
 {
     std::cout << "aplc v0.0.1" << std::endl;
+
     int opt;
     bool output_tokens = false;
 
